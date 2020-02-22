@@ -11,6 +11,7 @@ import Json.Decode as D exposing (Decoder, field, index, map2, string)
 
 -- MAIN
 
+
 main =
     Browser.element
         { init = init
@@ -175,11 +176,16 @@ type alias BooleanQuestion =
     }
 
 
+firstQuestion : Decoder a -> Decoder a
+firstQuestion =
+    field "results" << index 0
+
+
 questionDecoder : Decoder BooleanQuestion
 questionDecoder =
     map2 BooleanQuestion
-        (field "results" (index 0 (field "question" string)))
-        (field "results" (index 0 (field "correct_answer" string)) |> D.andThen booleanStringDecoder)
+        (firstQuestion (field "question" string))
+        (firstQuestion (field "correct_answer" string) |> D.andThen booleanStringDecoder)
 
 
 booleanStringDecoder : String -> Decoder Bool
