@@ -11,7 +11,6 @@ import Json.Decode as D exposing (Decoder, field, index, map2, string)
 
 -- MAIN
 
-
 main =
     Browser.element
         { init = init
@@ -25,7 +24,7 @@ main =
 -- MODEL
 
 
-type alias AnsweredModel =
+type alias AnsweredQuestion =
     { question : BooleanQuestion
     , answer : Bool
     }
@@ -35,7 +34,7 @@ type Model
     = Failure String
     | Loading
     | Success BooleanQuestion
-    | Answered AnsweredModel
+    | Answered AnsweredQuestion
 
 
 init : () -> ( Model, Cmd Msg )
@@ -48,7 +47,7 @@ init _ =
 
 
 type Msg
-    = Skip
+    = NextQuestion
     | GotQuestion (Result Http.Error BooleanQuestion)
     | Answer Bool
 
@@ -56,7 +55,7 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        Skip ->
+        NextQuestion ->
             ( Loading, getRandomCatGif )
 
         GotQuestion result ->
@@ -122,7 +121,7 @@ viewGif model =
         Failure reason ->
             div []
                 [ text ("I could not load the question because of " ++ reason)
-                , button [ onClick Skip ] [ text "Try Again!" ]
+                , button [ onClick NextQuestion ] [ text "Try Again!" ]
                 ]
 
         Loading ->
@@ -130,7 +129,7 @@ viewGif model =
 
         Success question ->
             div []
-                [ button [ onClick Skip, style "display" "block" ] [ text "More Please!" ]
+                [ button [ onClick NextQuestion, style "display" "block" ] [ text "More Please!" ]
                 , p [] [ text question.question ]
                 , button [ onClick (Answer True) ] [ text "True" ]
                 , button [ onClick (Answer False) ] [ text "False" ]
@@ -138,13 +137,13 @@ viewGif model =
 
         Answered answered ->
             div []
-                [ button [ onClick Skip, style "display" "block" ] [ text "More Please!" ]
+                [ button [ onClick NextQuestion, style "display" "block" ] [ text "More Please!" ]
                 , p [] [ text answered.question.question ]
                 , p [] [ text (correctNessString answered) ]
                 ]
 
 
-correctNessString : AnsweredModel -> String
+correctNessString : AnsweredQuestion -> String
 correctNessString model =
     if correctNess model then
         "Correct!"
@@ -153,7 +152,7 @@ correctNessString model =
         "Wrong :("
 
 
-correctNess : AnsweredModel -> Bool
+correctNess : AnsweredQuestion -> Bool
 correctNess model =
     model.question.answer == model.answer
 
