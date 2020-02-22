@@ -25,10 +25,17 @@ main =
 -- MODEL
 
 
+type alias AnsweredModel =
+    { question : BooleanQuestion
+    , answer : Bool
+    }
+
+
 type Model
     = Failure String
     | Loading
     | Success BooleanQuestion
+    | Answered AnsweredModel
 
 
 init : () -> ( Model, Cmd Msg )
@@ -41,14 +48,15 @@ init _ =
 
 
 type Msg
-    = MorePlease
+    = Skip
     | GotQuestion (Result Http.Error BooleanQuestion)
+    | Answer Bool
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg _ =
+update msg model =
     case msg of
-        MorePlease ->
+        Skip ->
             ( Loading, getRandomCatGif )
 
         GotQuestion result ->
@@ -58,6 +66,14 @@ update msg _ =
 
                 Err reason ->
                     ( Failure (errorToString reason), Cmd.none )
+
+        Answer answer ->
+            case model of
+                Success question ->
+                    ( Answered { question = question, answer = answer }, Cmd.none )
+
+                _ ->
+                    ( Failure "Answered without a question", Cmd.none )
 
 
 errorToString : Http.Error -> String
@@ -95,7 +111,7 @@ subscriptions _ =
 view : Model -> Html Msg
 view model =
     div []
-        [ h2 [] [ text "Random Cats" ]
+        [ h2 [] [ text "Trivia!" ]
         , viewGif model
         ]
 
@@ -106,7 +122,7 @@ viewGif model =
         Failure reason ->
             div []
                 [ text ("I could not load the question because of " ++ reason)
-                , button [ onClick MorePlease ] [ text "Try Again!" ]
+                , button [ onClick Skip ] [ text "Try Again!" ]
                 ]
 
         Loading ->
@@ -114,11 +130,32 @@ viewGif model =
 
         Success question ->
             div []
-                [ button [ onClick MorePlease, style "display" "block" ] [ text "More Please!" ]
+                [ button [ onClick Skip, style "display" "block" ] [ text "More Please!" ]
                 , p [] [ text question.question ]
-                , button [ onClick MorePlease ] [ text "True" ]
-                , button [ onClick MorePlease ] [ text "False" ]
+                , button [ onClick (Answer True) ] [ text "True" ]
+                , button [ onClick (Answer False) ] [ text "False" ]
                 ]
+
+        Answered answered ->
+            div []
+                [ button [ onClick Skip, style "display" "block" ] [ text "More Please!" ]
+                , p [] [ text answered.question.question ]
+                , p [] [ text (correctNessString answered) ]
+                ]
+
+
+correctNessString : AnsweredModel -> String
+correctNessString model =
+    if correctNess model then
+        "Correct!"
+
+    else
+        "Wrong :("
+
+
+correctNess : AnsweredModel -> Bool
+correctNess model =
+    model.question.answer == model.answer
 
 
 
