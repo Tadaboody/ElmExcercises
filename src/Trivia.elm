@@ -25,17 +25,11 @@ main =
 -- MODEL
 
 
-type alias AnsweredQuestion =
-    { question : BooleanQuestion
-    , answer : Bool
-    }
-
-
 type Model
     = Failure String
     | Loading
-    | Success BooleanQuestion
-    | Answered AnsweredQuestion
+    | Success Question
+    | Answered Question
 
 
 init : () -> ( Model, Cmd Msg )
@@ -49,8 +43,8 @@ init _ =
 
 type Msg
     = NextQuestion
-    | GotQuestion (Result Http.Error BooleanQuestion)
-    | Answer Bool
+    | GotQuestion (Result Http.Error Question)
+    | Answer String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -61,8 +55,8 @@ update msg model =
 
         GotQuestion result ->
             case result of
-                Ok url ->
-                    ( Success url, Cmd.none )
+                Ok question ->
+                    ( Success question, Cmd.none )
 
                 Err reason ->
                     ( Failure (errorToString reason), Cmd.none )
@@ -70,7 +64,7 @@ update msg model =
         Answer answer ->
             case model of
                 Success question ->
-                    ( Answered { question = question, answer = answer }, Cmd.none )
+                    ( Answered { question | chosenAnswer = Just answer }, Cmd.none )
 
                 _ ->
                     ( Failure "Answered without a question", Cmd.none )
@@ -132,30 +126,43 @@ viewGif model =
             div []
                 [ button [ onClick NextQuestion, style "display" "block" ] [ text "More Please!" ]
                 , p [] [ text question.question ]
-                , button [ onClick (Answer True) ] [ text "True" ]
-                , button [ onClick (Answer False) ] [ text "False" ]
+                , div [] (List.map answerButton (question.answers.correctAnswer :: question.answers.wrongAnswers))
                 ]
 
         Answered answered ->
             div []
                 [ button [ onClick NextQuestion, style "display" "block" ] [ text "More Please!" ]
-                , p [] [ text answered.question.question ]
+                , p [] [ text answered.question ]
                 , p [] [ text (correctNessString answered) ]
                 ]
 
 
-correctNessString : AnsweredQuestion -> String
+answerButton : String -> Html Msg
+answerButton answer =
+    button [ onClick <| Answer answer ] [ text answer ]
+
+
+correctNessString : Question -> String
 correctNessString model =
-    if correctNess model then
-        "Correct!"
+    case correctNess model of
+        Just True ->
+            "Correct!"
 
-    else
-        "Wrong :("
+        Just False ->
+            "Wrong :("
+
+        Nothing ->
+            "Huh?"
 
 
-correctNess : AnsweredQuestion -> Bool
-correctNess model =
-    model.question.answer == model.answer
+correctNess : Question -> Maybe Bool
+correctNess question =
+    case question.chosenAnswer of
+        Maybe.Just answer ->
+            Just (question.answers.correctAnswer == answer)
+
+        Nothing ->
+            Nothing
 
 
 
@@ -165,14 +172,21 @@ correctNess model =
 getRandomCatGif : Cmd Msg
 getRandomCatGif =
     Http.get
-        { url = "https://opentdb.com/api.php?amount=1&type=boolean"
+        { url = "https://opentdb.com/api.php?amount=1"
         , expect = Http.expectJson GotQuestion questionDecoder
         }
 
 
-type alias BooleanQuestion =
+type alias Answers =
+    { correctAnswer : String
+    , wrongAnswers : List String
+    }
+
+
+type alias Question =
     { question : String
-    , answer : Bool
+    , answers : Answers
+    , chosenAnswer : Maybe String
     }
 
 
@@ -181,21 +195,12 @@ firstQuestion =
     field "results" << index 0
 
 
-questionDecoder : Decoder BooleanQuestion
+questionDecoder : Decoder Question
 questionDecoder =
-    map2 BooleanQuestion
-        (firstQuestion (field "question" string))
-        (firstQuestion (field "correct_answer" string) |> D.andThen booleanStringDecoder)
-
-
-booleanStringDecoder : String -> Decoder Bool
-booleanStringDecoder string =
-    case string of
-        "True" ->
-            D.succeed True
-
-        "False" ->
-            D.succeed False
-
-        _ ->
-            D.fail ("Could not parse " ++ string ++ " as a boolean")
+    D.map3 Question
+        (firstQuestion (field "question" D.string))
+        (D.map2 Answers
+            (firstQuestion (field "correct_answer" D.string))
+            (firstQuestion (field "incorrect_answers" (D.list D.string)))
+        )
+        (D.succeed Nothing)
