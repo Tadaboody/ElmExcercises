@@ -157,12 +157,7 @@ correctNessString model =
 
 correctNess : Question -> Maybe Bool
 correctNess question =
-    case question.chosenAnswer of
-        Maybe.Just answer ->
-            Just (question.answers.correctAnswer == answer)
-
-        Nothing ->
-            Nothing
+    Maybe.map (\answer -> question.answers.correctAnswer == answer) question.chosenAnswer
 
 
 
@@ -197,10 +192,12 @@ firstQuestion =
 
 questionDecoder : Decoder Question
 questionDecoder =
-    D.map3 Question
-        (firstQuestion (field "question" D.string))
-        (D.map2 Answers
-            (firstQuestion (field "correct_answer" D.string))
-            (firstQuestion (field "incorrect_answers" (D.list D.string)))
+    firstQuestion
+        (D.map3 Question
+            (field "question" D.string)
+            (D.map2 Answers
+                (field "correct_answer" D.string)
+                (field "incorrect_answers" (D.list D.string))
+            )
+            (D.succeed Nothing)
         )
-        (D.succeed Nothing)
