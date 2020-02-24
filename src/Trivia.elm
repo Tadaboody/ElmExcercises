@@ -5,7 +5,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Http
-import Json.Decode as D exposing (Decoder, field, index, string)
+import Json.Decode as JsDecode
 import Random
 import Random.List
 
@@ -36,7 +36,7 @@ type Model
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( Loading, getRandomCatGif )
+    ( Loading, getQuestion )
 
 
 
@@ -54,7 +54,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         NextQuestion ->
-            ( Loading, getRandomCatGif )
+            ( Loading, getQuestion )
 
         GotQuestion result ->
             case result of
@@ -105,15 +105,6 @@ errorToString err =
 
 
 
--- SUBSCRIPTIONS
-
-
-subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Sub.none
-
-
-
 -- VIEW
 
 
@@ -121,12 +112,12 @@ view : Model -> Html Msg
 view model =
     div []
         [ h2 [] [ text "Trivia!" ]
-        , viewGif model
+        , viewQuestion model
         ]
 
 
-viewGif : Model -> Html Msg
-viewGif model =
+viewQuestion : Model -> Html Msg
+viewQuestion model =
     case model of
         Failure reason ->
             div []
@@ -189,8 +180,8 @@ correctNess question =
 -- HTTP
 
 
-getRandomCatGif : Cmd Msg
-getRandomCatGif =
+getQuestion : Cmd Msg
+getQuestion =
     Http.get
         { url = "https://opentdb.com/api.php?amount=1"
         , expect = Http.expectJson GotQuestion questionDecoder
@@ -211,20 +202,20 @@ type alias Question =
     }
 
 
-firstQuestion : Decoder a -> Decoder a
+firstQuestion : JsDecode.Decoder a -> JsDecode.Decoder a
 firstQuestion =
-    field "results" << index 0
+    JsDecode.field "results" << JsDecode.index 0
 
 
-questionDecoder : Decoder Question
+questionDecoder : JsDecode.Decoder Question
 questionDecoder =
     firstQuestion
-        (D.map3 Question
-            (field "question" D.string)
-            (D.map3 Answers
-                (field "correct_answer" D.string)
-                (field "incorrect_answers" (D.list D.string))
-                (D.succeed Nothing)
+        (JsDecode.map3 Question
+            (JsDecode.field "question" JsDecode.string)
+            (JsDecode.map3 Answers
+                (JsDecode.field "correct_answer" JsDecode.string)
+                (JsDecode.field "incorrect_answers" (JsDecode.list JsDecode.string))
+                (JsDecode.succeed Nothing)
             )
-            (D.succeed Nothing)
+            (JsDecode.succeed Nothing)
         )
