@@ -202,15 +202,12 @@ type alias Question =
     }
 
 
-firstQuestion : JsDecode.Decoder a -> JsDecode.Decoder a
-firstQuestion =
-    JsDecode.field "results" << JsDecode.index 0
-
-
 questionDecoder : JsDecode.Decoder Question
 questionDecoder =
-    firstQuestion
-        (JsDecode.map3 Question
+    JsDecode.field "results"
+        << JsDecode.index 0
+    <|
+        JsDecode.map3 Question
             (JsDecode.field "question" JsDecode.string)
             (JsDecode.map3 Answers
                 (JsDecode.field "correct_answer" JsDecode.string)
@@ -218,4 +215,3 @@ questionDecoder =
                 (JsDecode.succeed Nothing)
             )
             (JsDecode.succeed Nothing)
-        )
