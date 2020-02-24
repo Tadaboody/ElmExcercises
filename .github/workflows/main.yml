@@ -1,4 +1,4 @@
-name: CI
+name: Build PR
 
 on: 
   pull_request:
@@ -11,8 +11,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2.0.0
       - name: Setup Elm
         uses: justgook/setup-elm@v1
+        
       - name: Build exercise
         run: elm make src/*.elm
       - name: Upload exercise
