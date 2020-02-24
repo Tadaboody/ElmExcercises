@@ -5,7 +5,9 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Http
-import Json.Decode as D exposing (Decoder, field, index, map2, string)
+import Json.Decode as D exposing (Decoder, field, index, string)
+import Random
+import Random.List
 
 
 
@@ -16,7 +18,7 @@ main =
     Browser.element
         { init = init
         , update = update
-        , subscriptions = subscriptions
+        , subscriptions = \_ -> Sub.none
         , view = view
         }
 
@@ -45,6 +47,7 @@ type Msg
     = NextQuestion
     | GotQuestion (Result Http.Error Question)
     | Answer String
+    | Shuffle (List String)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -56,7 +59,7 @@ update msg model =
         GotQuestion result ->
             case result of
                 Ok question ->
-                    ( Success question, Cmd.none )
+                    ( Success question, Random.generate Shuffle (Random.List.shuffle (question.answers.correctAnswer :: question.answers.wrongAnswers)) )
 
                 Err reason ->
                     ( Failure (errorToString reason), Cmd.none )
@@ -68,6 +71,18 @@ update msg model =
 
                 _ ->
                     ( Failure "Answered without a question", Cmd.none )
+
+        Shuffle shuffledAnswers ->
+            case model of
+                Success question ->
+                    let
+                        answers =
+                            question.answers
+                    in
+                    ( Success { question | answers = { answers | displayAnswers = Just shuffledAnswers } }, Cmd.none )
+
+                _ ->
+                    ( Failure "Tried to shuffle a question without a question", Cmd.none )
 
 
 errorToString : Http.Error -> String
@@ -126,7 +141,7 @@ viewGif model =
             div []
                 [ button [ onClick NextQuestion, style "display" "block" ] [ text "More Please!" ]
                 , p [] [ text question.question ]
-                , div [] (List.map answerButton (question.answers.correctAnswer :: question.answers.wrongAnswers))
+                , div [] (displayAnswers question)
                 ]
 
         Answered answered ->
@@ -137,14 +152,24 @@ viewGif model =
                 ]
 
 
+displayAnswers : Question -> List (Html Msg)
+displayAnswers question =
+    case question.answers.displayAnswers of
+        Just answers ->
+            List.map answerButton answers
+
+        Nothing ->
+            [ text "No answers to display :*(" ]
+
+
 answerButton : String -> Html Msg
 answerButton answer =
     button [ onClick <| Answer answer ] [ text answer ]
 
 
 correctNessString : Question -> String
-correctNessString model =
-    case correctNess model of
+correctNessString question =
+    case correctNess question of
         Just True ->
             "Correct!"
 
@@ -152,7 +177,7 @@ correctNessString model =
             "Wrong :("
 
         Nothing ->
-            "Huh?"
+            "Didn't get an answer to check"
 
 
 correctNess : Question -> Maybe Bool
@@ -175,6 +200,7 @@ getRandomCatGif =
 type alias Answers =
     { correctAnswer : String
     , wrongAnswers : List String
+    , displayAnswers : Maybe (List String)
     }
 
 
@@ -195,9 +221,10 @@ questionDecoder =
     firstQuestion
         (D.map3 Question
             (field "question" D.string)
-            (D.map2 Answers
+            (D.map3 Answers
                 (field "correct_answer" D.string)
                 (field "incorrect_answers" (D.list D.string))
+                (D.succeed Nothing)
             )
             (D.succeed Nothing)
         )
