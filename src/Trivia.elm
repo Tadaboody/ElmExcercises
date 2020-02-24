@@ -1,4 +1,4 @@
-module Trivia exposing (..)
+module Trivia exposing (main)
 
 import Browser
 import Html exposing (..)
