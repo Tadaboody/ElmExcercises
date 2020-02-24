@@ -1,0 +1,22 @@
+name: CI
+
+on: 
+  pull_request:
+    branches: 
+      - master
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup Elm
+        uses: justgook/setup-elm@v1
+      - name: Build exercise
+        run: elm make src/*.elm
+      - name: Upload exercise
+        uses: actions/upload-artifact@v1.0.0
+        with:
+          name: Web page
+          path: index.html
